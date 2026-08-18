@@ -76,7 +76,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Nova Agent",
     description="Secure remote maintenance agent for local Git repositories",
-    version="1.2.1",
+    version="1.2.2",
     default_response_class=ORJSONResponse,
     lifespan=lifespan,
 )
