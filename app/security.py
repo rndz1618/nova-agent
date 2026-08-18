@@ -80,7 +80,11 @@ def require_branch_ops(settings: Settings) -> None:
 
 def require_git_mode(settings: Settings) -> None:
     if not settings.is_git_mode:
-        raise HTTPException(
-            status_code=403,
-            detail="This endpoint requires MODE=git. Current mode is 'folder'.",
-        )
+        if settings.mode == "folder":
+            detail = "Git endpoints disabled (MODE=folder). Set MODE=auto or MODE=git to enable."
+        else:
+            detail = (
+                "Git endpoints unavailable: path is not a git repository. "
+                "Use a git repo path, or set MODE=git if you expect git ops."
+            )
+        raise HTTPException(status_code=403, detail=detail)
