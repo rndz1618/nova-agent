@@ -66,9 +66,19 @@ class GitService:
 
     def branch_list(self) -> dict[str, Any]:
         local = [b.name for b in self.repo.branches]
-        remote = [r.name for r in self.repo.remotes.origin.refs] if self.repo.remotes else []
+        remote: list[str] = []
+        if self.repo.remotes:
+            for remote_obj in self.repo.remotes:
+                try:
+                    remote.extend([ref.name for ref in remote_obj.refs])
+                except Exception:
+                    pass
+        try:
+            current = self.repo.active_branch.name if not self.repo.head.is_detached else None
+        except TypeError:
+            current = None
         return {
-            "current": self.repo.active_branch.name if not self.repo.head.is_detached else None,
+            "current": current,
             "local": local,
             "remote": remote,
         }
@@ -99,10 +109,32 @@ class GitService:
         try:
             if branch is None:
                 branch = self.repo.active_branch.name
-            # Prefer token if available (for HTTPS remotes)
-            if self.settings.github_token:
-                # Note: for security we do not rewrite remote URL permanently
-                result = self.repo.git.push(remote, branch)
+
+            token = self.settings.github_token
+            if token:
+                # Use token for HTTPS remotes without permanently rewriting remote URL.
+                askpass = "echo"
+                with self.repo.git.custom_environment(
+                    GIT_ASKPASS=askpass,
+                    GIT_TERMINAL_PROMPT="0",
+                    GIT_USERNAME="x-access-token",
+                    GIT_PASSWORD=token,
+                    GITHUB_TOKEN=token,
+                ):
+                    try:
+                        remote_url = self.repo.remotes[remote].url
+                    except Exception:
+                        remote_url = ""
+
+                    if remote_url.startswith("https://") and "github.com" in remote_url:
+                        authed = remote_url.replace(
+                            "https://",
+                            f"https://x-access-token:{token}@",
+                            1,
+                        )
+                        result = self.repo.git.push(authed, branch)
+                    else:
+                        result = self.repo.git.push(remote, branch)
             else:
                 result = self.repo.git.push(remote, branch)
             return result or "Push successful"
@@ -113,7 +145,31 @@ class GitService:
         try:
             if branch is None:
                 branch = self.repo.active_branch.name
-            result = self.repo.git.pull(remote, branch)
+
+            token = self.settings.github_token
+            if token:
+                try:
+                    remote_url = self.repo.remotes[remote].url
+                except Exception:
+                    remote_url = ""
+                if remote_url.startswith("https://") and "github.com" in remote_url:
+                    authed = remote_url.replace(
+                        "https://",
+                        f"https://x-access-token:{token}@",
+                        1,
+                    )
+                    result = self.repo.git.pull(authed, branch)
+                else:
+                    with self.repo.git.custom_environment(
+                        GIT_ASKPASS="echo",
+                        GIT_TERMINAL_PROMPT="0",
+                        GIT_USERNAME="x-access-token",
+                        GIT_PASSWORD=token,
+                        GITHUB_TOKEN=token,
+                    ):
+                        result = self.repo.git.pull(remote, branch)
+            else:
+                result = self.repo.git.pull(remote, branch)
             return result or "Pull successful"
         except GitCommandError as e:
             raise HTTPException(status_code=400, detail=f"Pull failed: {e}")
