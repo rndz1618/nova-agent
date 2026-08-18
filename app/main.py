@@ -23,7 +23,16 @@ structlog.configure(
 )
 logger = structlog.get_logger()
 
-limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
+
+def _default_rate_limit() -> str:
+    try:
+        n = get_settings().rate_limit_per_minute
+        return f"{max(1, int(n))}/minute"
+    except Exception:
+        return "60/minute"
+
+
+limiter = Limiter(key_func=get_remote_address, default_limits=[_default_rate_limit()])
 _last_activity: float = time.time()
 
 
@@ -67,7 +76,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Nova Agent",
     description="Secure remote maintenance agent for local Git repositories",
-    version="1.2.0",
+    version="1.2.1",
     default_response_class=ORJSONResponse,
     lifespan=lifespan,
 )
