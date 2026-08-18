@@ -10,46 +10,19 @@ from .security import (
     verify_api_key,
     require_write,
     require_push,
-    require_quality,
-    require_branch_ops,
 )
-from .audit import get_audit_logger, AuditLogger
 from .file_ops import FileService
 from .git_ops import GitService
-from .quality import QualityService
+from .audit import AuditLogger
+from .dependencies import get_file_svc, get_git_svc, get_audit
 from .models import (
     WriteFileRequest,
     CommitRequest,
     PushPullRequest,
-    QualityRequest,
-    CreateBranchRequest,
-    CheckoutRequest,
-    DeleteBranchRequest,
-    RenameBranchRequest,
 )
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
-
-
-def get_file_svc(settings: Annotated[Settings, Depends(get_settings)]) -> FileService:
-    return FileService(settings)
-
-
-def get_git_svc(settings: Annotated[Settings, Depends(get_settings)]) -> GitService:
-    from .security import require_git_mode
-    require_git_mode(settings)
-    return GitService(settings)
-
-
-def get_quality_svc(settings: Annotated[Settings, Depends(get_settings)]) -> QualityService:
-    from .security import require_git_mode
-    require_git_mode(settings)
-    return QualityService(settings)
-
-
-def get_audit(settings: Annotated[Settings, Depends(get_settings)]) -> AuditLogger:
-    return get_audit_logger(settings)
 
 
 @router.get("/health")
