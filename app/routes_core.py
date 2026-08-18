@@ -32,10 +32,14 @@ async def health(request: Request, settings: Annotated[Settings, Depends(get_set
         "status": "ok",
         "time": datetime.now(timezone.utc).isoformat(),
         "mode": settings.mode,
+        "git_available": settings.is_git_mode,
+        "git_repo_detected": settings.git_repo_detected,
         "path": str(settings.repo_path),
         "idle_timeout_minutes": settings.idle_timeout_minutes,
         "features": {
+            "files": True,
             "write": settings.allow_write,
+            "git": settings.is_git_mode,
             "push": settings.allow_push and settings.is_git_mode,
             "quality": settings.allow_quality_commands and settings.is_git_mode,
             "branch_ops": settings.allow_branch_ops and settings.is_git_mode,
@@ -51,6 +55,8 @@ async def config_info(
 ):
     return {
         "mode": settings.mode,
+        "git_available": settings.is_git_mode,
+        "git_repo_detected": settings.git_repo_detected,
         "path": str(settings.repo_path),
         "allow_write": settings.allow_write,
         "allow_push": settings.allow_push,
